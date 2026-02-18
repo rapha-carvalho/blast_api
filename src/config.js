@@ -31,7 +31,7 @@ module.exports = {
   maxBodyBytes: maxBodyMb * 1024 * 1024,
   rateLimitMax: parsePositiveInt(process.env.RATE_LIMIT_MAX, 20),
   rateLimitWindowMs: parsePositiveInt(process.env.RATE_LIMIT_WINDOW_MS, 60_000),
-  enableDb: parseBoolean(process.env.ENABLE_DB, true),
+  enableDb: parseBoolean(process.env.ENABLE_DB, false),
   dbPath: process.env.DB_PATH || path.resolve(process.cwd(), "data", "ga4-inspector.db"),
   allowedOrigins: (process.env.ALLOWED_ORIGINS || "https://blastgroup.org")
     .split(",")

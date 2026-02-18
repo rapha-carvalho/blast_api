@@ -7,29 +7,29 @@ This setup expects the API image to be published from GitHub Actions to GHCR.
 1. Keep this repository on GitHub.
 2. Use branch `main` for deployable changes.
 3. Confirm workflow exists at `.github/workflows/docker-publish.yml`.
-4. Push one commit to trigger first image build.
+4. Push one commit to trigger the first image build.
 5. Wait for workflow success in GitHub Actions.
 6. Confirm image exists in GHCR:
    - `ghcr.io/rapha-carvalho/blast_api:latest`
 
-If the package is private, you must run `docker login ghcr.io` on NAS with a GitHub token that has `read:packages`.
+If the package is private, run `docker login ghcr.io` on NAS with a GitHub token that has `read:packages`.
 
 ## 2) Why This Compose Works Better on NAS
 
-- The API now stores SQLite in a Docker named volume (`ga4_inspector_data`).
-- This avoids common NAS bind-mount permission errors like `db_init_failed`.
-- No host folder creation/chown is required for DB persistence.
+- The API uses a Docker named volume (`ga4_inspector_data`) for SQLite.
+- This avoids common NAS bind-mount permission errors.
+- DB is disabled by default (`ENABLE_DB=false`) because it is optional.
+
 ## 3) Files Needed on NAS
 
 Only these files are required on NAS:
 
 - `docker-compose.yml`
 - `.env`
-- Optional helper: `nas-update.sh`
 
 `docker-compose.yml` already contains both services:
 
-- `api` (your backend image from GHCR)
+- `api` (backend image from GHCR)
 - `cloudflared` (tunnel connector)
 
 ## 4) Create `.env` on NAS
@@ -43,7 +43,7 @@ NODE_ENV=production
 MAX_BODY_MB=5
 RATE_LIMIT_MAX=20
 RATE_LIMIT_WINDOW_MS=60000
-ENABLE_DB=true
+ENABLE_DB=false
 DB_PATH=/app/data/ga4-inspector.db
 ALLOWED_ORIGINS=https://blastgroup.org
 ALLOW_CHROME_EXTENSION_ORIGINS=true
@@ -95,12 +95,6 @@ docker compose logs -f api cloudflared
 After each new push to `main` and successful GitHub Action build:
 
 ```bash
-sh nas-update.sh
-```
-
-Equivalent manual command:
-
-```bash
 docker compose --env-file .env pull
 docker compose --env-file .env up -d --remove-orphans
 ```
@@ -121,9 +115,8 @@ curl -X POST "https://api.blastgroup.org/api/v1/ga4-inspector/reports" \
 
 ## 10) If You Still See `db_init_failed`
 
-1. Restart services:
+1. Restart API:
    - `docker compose --env-file .env restart api`
 2. Inspect error detail:
    - `docker compose logs --tail=100 api`
-3. Temporary bypass if needed:
-   - Set `ENABLE_DB=false` in `.env` and run `sh nas-update.sh`
+3. Keep DB disabled (`ENABLE_DB=false`) unless you explicitly need request audit storage.

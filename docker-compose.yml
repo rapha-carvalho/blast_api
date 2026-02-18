@@ -8,7 +8,7 @@ services:
       MAX_BODY_MB: ${MAX_BODY_MB:-5}
       RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-20}
       RATE_LIMIT_WINDOW_MS: ${RATE_LIMIT_WINDOW_MS:-60000}
-      ENABLE_DB: ${ENABLE_DB:-true}
+      ENABLE_DB: ${ENABLE_DB:-false}
       DB_PATH: ${DB_PATH:-/app/data/ga4-inspector.db}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-https://blastgroup.org}
       ALLOW_CHROME_EXTENSION_ORIGINS: ${ALLOW_CHROME_EXTENSION_ORIGINS:-true}
