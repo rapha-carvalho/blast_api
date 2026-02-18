@@ -39,6 +39,7 @@ docker compose -f docker-compose.local.yml up --build -d
 - NAS deploy file: `docker-compose.yml`
 - Update script: `nas-update.sh`
 - Full setup: `NAS_CLOUDFLARE_TUNNEL_SETUP.md`
+- SQLite persistence uses Docker named volume `ga4_inspector_data` (NAS permission-safe default)
 
 ## Environment Variables
 

@@ -87,7 +87,7 @@ app.use((err, req, res, next) => {
 try {
   initDb();
 } catch (error) {
-  console.error("db_init_failed");
+  console.error("db_init_failed", error && error.message ? error.message : error);
 }
 
 app.listen(config.port, () => {

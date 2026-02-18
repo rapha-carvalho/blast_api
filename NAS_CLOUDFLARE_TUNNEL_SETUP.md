@@ -14,7 +14,12 @@ This setup expects the API image to be published from GitHub Actions to GHCR.
 
 If the package is private, you must run `docker login ghcr.io` on NAS with a GitHub token that has `read:packages`.
 
-## 2) Files Needed on NAS
+## 2) Why This Compose Works Better on NAS
+
+- The API now stores SQLite in a Docker named volume (`ga4_inspector_data`).
+- This avoids common NAS bind-mount permission errors like `db_init_failed`.
+- No host folder creation/chown is required for DB persistence.
+## 3) Files Needed on NAS
 
 Only these files are required on NAS:
 
@@ -27,7 +32,7 @@ Only these files are required on NAS:
 - `api` (your backend image from GHCR)
 - `cloudflared` (tunnel connector)
 
-## 3) Create `.env` on NAS
+## 4) Create `.env` on NAS
 
 Use this template:
 
@@ -49,7 +54,7 @@ CLOUDFLARE_TUNNEL_TOKEN=
 
 Set `CLOUDFLARE_TUNNEL_TOKEN` after creating the tunnel.
 
-## 4) Create Cloudflare Tunnel
+## 5) Create Cloudflare Tunnel
 
 In Cloudflare Zero Trust:
 
@@ -61,7 +66,7 @@ In Cloudflare Zero Trust:
 6. Put token into NAS `.env`:
    - `CLOUDFLARE_TUNNEL_TOKEN=<token>`
 
-## 5) Add Public Hostname in Tunnel
+## 6) Add Public Hostname in Tunnel
 
 Create one public hostname route:
 
@@ -72,7 +77,7 @@ Create one public hostname route:
 
 `api` is the backend service name in `docker-compose.yml`.
 
-## 6) Start on NAS
+## 7) Start on NAS
 
 ```bash
 docker compose --env-file .env up -d
@@ -85,7 +90,7 @@ docker compose ps
 docker compose logs -f api cloudflared
 ```
 
-## 7) Update on Every New Change
+## 8) Update on Every New Change
 
 After each new push to `main` and successful GitHub Action build:
 
@@ -100,7 +105,7 @@ docker compose --env-file .env pull
 docker compose --env-file .env up -d --remove-orphans
 ```
 
-## 8) Verify
+## 9) Verify
 
 ```bash
 curl https://api.blastgroup.org/api/health
@@ -113,3 +118,12 @@ curl -X POST "https://api.blastgroup.org/api/v1/ga4-inspector/reports" \
   --data @payload.json \
   --output ga4-inspector-report.pdf
 ```
+
+## 10) If You Still See `db_init_failed`
+
+1. Restart services:
+   - `docker compose --env-file .env restart api`
+2. Inspect error detail:
+   - `docker compose logs --tail=100 api`
+3. Temporary bypass if needed:
+   - Set `ENABLE_DB=false` in `.env` and run `sh nas-update.sh`

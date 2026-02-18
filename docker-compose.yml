@@ -15,7 +15,7 @@ services:
       ALLOWED_EXTENSION_IDS: ${ALLOWED_EXTENSION_IDS:-}
       LOGO_PATH: ${LOGO_PATH:-/app/blast-logo.png}
     volumes:
-      - ./data:/app/data
+      - ga4_inspector_data:/app/data
     expose:
       - "3001"
     restart: unless-stopped
@@ -27,3 +27,6 @@ services:
     depends_on:
       - api
     restart: unless-stopped
+
+volumes:
+  ga4_inspector_data:
