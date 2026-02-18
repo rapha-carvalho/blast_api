@@ -1,0 +1,17 @@
+{
+  "name": "ga4-inspector-backend",
+  "version": "1.0.0",
+  "description": "Self-hosted backend for GA4 Inspector PDF report generation",
+  "main": "src/index.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.4.1",
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "pdfkit": "^0.17.2"
+  }
+}
