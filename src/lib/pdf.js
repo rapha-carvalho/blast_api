@@ -214,13 +214,14 @@ function drawFooter(doc, generatedAtText, pageNumber) {
 }
 
 function drawLogoBlock(doc, logoPath, topY, contentWidth) {
-  const logoBlockWidth = 170;
+  const logoBlockWidth = 220;
+  const logoSize = 70;
   const logoX = doc.page.margins.left + contentWidth - logoBlockWidth;
 
   if (logoPath && fs.existsSync(logoPath)) {
     try {
-      doc.image(logoPath, logoX + 18, topY, {
-        fit: [150, 50],
+      doc.image(logoPath, logoX + logoBlockWidth - logoSize, topY, {
+        fit: [logoSize, logoSize],
         align: "right",
       });
     } catch (error) {
@@ -230,7 +231,7 @@ function drawLogoBlock(doc, logoPath, topY, contentWidth) {
 
   doc.save();
   doc.font("Helvetica").fontSize(9).fillColor("#4b5563");
-  doc.text("Powered by BlastGroup", logoX, topY + 55, {
+  doc.text("https://blastgroup.org", logoX, topY + 74, {
     width: logoBlockWidth,
     align: "right",
   });
@@ -448,7 +449,7 @@ function buildPdf(doc, { events, sessionInfo, generatedAt, logoPath }) {
 
   doc.font("Helvetica-Bold").fontSize(20).fillColor("#111827");
   doc.text("GA4 Inspector Report", left, topY, {
-    width: contentWidth - 190,
+    width: contentWidth - 240,
   });
 
   doc.y = Math.max(doc.y, topY + 72);
