@@ -2,6 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const config = require("./config");
 const reportsRouter = require("./routes/reports");
+const mixpanelReportsRouter = require("./routes/mixpanelReports");
 const { initDb } = require("./lib/db");
 
 function isAllowedExtensionOrigin(origin, allowedExtensionIds) {
@@ -74,6 +75,8 @@ app.get("/api/health", (req, res) => {
 
 app.use("/api/v1/ga4-inspector/reports", reportsRouter);
 app.use("/api/v1/reports/ga4-inspector", reportsRouter);
+app.use("/api/v1/mixpanel-inspector/reports", mixpanelReportsRouter);
+app.use("/api/v1/reports/mixpanel-inspector", mixpanelReportsRouter);
 
 app.use((err, req, res, next) => {
   console.error("unhandled_error");

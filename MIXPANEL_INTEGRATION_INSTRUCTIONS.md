@@ -1,13 +1,11 @@
-# GA4 Inspector API Integration Instructions
+# Mixpanel Inspector API Integration Instructions
 
 Use this guide to send requests from your app and receive the final PDF report.
 
-For Mixpanel Inspector endpoint instructions, see `MIXPANEL_INTEGRATION_INSTRUCTIONS.md`.
-
 ## 1) Endpoint
 
-- Local: `http://localhost:3001/api/v1/ga4-inspector/reports`
-- Production (through your tunnel/domain): `https://api.blastgroup.org/api/v1/ga4-inspector/reports`
+- Local: `http://localhost:3001/api/v1/mixpanel-inspector/reports`
+- Production (through your tunnel/domain): `https://api.blastgroup.org/api/v1/mixpanel-inspector/reports`
 
 Health check:
 
@@ -21,10 +19,15 @@ Health check:
   - `Content-Type: application/json`
   - `Accept: application/pdf`
 - Body (JSON):
-  - `events`: array (required)
+  - `events`: array (required, non-empty, max `10000`)
   - `generatedAt`: ISO datetime string (required)
   - `source`: must be `"extension"` (required)
   - `sessionInfo`: object (optional)
+
+Notes:
+
+- Unknown fields are ignored for forward compatibility.
+- Keep payload below configured `MAX_BODY_MB` (default `5MB`).
 
 ## 3) Working Example Payload
 
@@ -33,24 +36,30 @@ Health check:
   "events": [
     {
       "id": "e1",
-      "timestamp": "2025-02-12T14:30:00.000Z",
-      "eventName": "page_view",
-      "measurementId": "G-XXXXXXXX",
-      "pageUrl": "https://example.com/page",
+      "timestamp": "2026-02-20T20:00:00.000Z",
+      "eventName": "Purchase",
+      "projectToken": "abc123",
+      "distinctId": "user-42",
+      "sessionId": "sess-1",
+      "measurementId": "abc123",
+      "clientId": "user-42",
+      "pageUrl": "https://example.com/checkout",
+      "tabId": 123,
       "params": {
-        "page_location": "https://example.com/page",
-        "page_title": "Example Page",
-        "client_id": "123.456",
-        "session_id": "789"
+        "currency": "USD",
+        "value": 29.9
       },
-      "source": "collect"
+      "source": "network",
+      "endpointType": "track",
+      "warnings": [],
+      "rawPayload": null
     }
   ],
   "sessionInfo": {
-    "pageUrl": "https://example.com/page",
+    "pageUrl": "https://example.com/checkout",
     "userAgent": "Mozilla/5.0 ..."
   },
-  "generatedAt": "2025-02-12T14:35:00.000Z",
+  "generatedAt": "2026-02-20T20:00:01.000Z",
   "source": "extension"
 }
 ```
@@ -58,18 +67,18 @@ Health check:
 ## 4) cURL Test (Saves PDF)
 
 ```bash
-curl -X POST "https://api.blastgroup.org/api/v1/ga4-inspector/reports" \
+curl -X POST "https://api.blastgroup.org/api/v1/mixpanel-inspector/reports" \
   -H "Content-Type: application/json" \
   -H "Accept: application/pdf" \
   --data @payload.json \
-  --output ga4-inspector-report.pdf
+  --output mixpanel-inspector-report.pdf
 ```
 
 ## 5) Browser App Example (JavaScript)
 
 ```js
-async function exportGa4Pdf(payload) {
-  const res = await fetch("https://api.blastgroup.org/api/v1/ga4-inspector/reports", {
+async function exportMixpanelPdf(payload) {
+  const res = await fetch("https://api.blastgroup.org/api/v1/mixpanel-inspector/reports", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -87,7 +96,7 @@ async function exportGa4Pdf(payload) {
   const blob = await res.blob();
   const filename = getFilenameFromContentDisposition(
     res.headers.get("content-disposition")
-  ) || "ga4-inspector-report.pdf";
+  ) || "mixpanel-inspector-report.pdf";
 
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -111,8 +120,8 @@ function getFilenameFromContentDisposition(contentDisposition) {
 ```js
 import fs from "node:fs/promises";
 
-async function requestGa4Pdf(payload) {
-  const res = await fetch("https://api.blastgroup.org/api/v1/ga4-inspector/reports", {
+async function requestMixpanelPdf(payload) {
+  const res = await fetch("https://api.blastgroup.org/api/v1/mixpanel-inspector/reports", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -127,23 +136,38 @@ async function requestGa4Pdf(payload) {
   }
 
   const bytes = Buffer.from(await res.arrayBuffer());
-  await fs.writeFile("ga4-inspector-report.pdf", bytes);
+  await fs.writeFile("mixpanel-inspector-report.pdf", bytes);
 }
 ```
 
 ## 7) Expected Errors
 
 - `400` invalid body
-- `413` payload > 5MB
+- `413` payload too large
 - `429` too many requests
 - `500` internal PDF generation error
 
-All errors return JSON.
+All errors return JSON:
 
-## 8) Notes for Your Dev
+```json
+{
+  "error": "Human readable message"
+}
+```
 
-- `source` must always be exactly `"extension"`.
-- Keep payload below 5MB.
-- Send `Accept: application/pdf` so the backend returns the binary PDF.
-- Read the response as binary (`blob`/`arrayBuffer`) and store/download it as `.pdf`.
-- Legacy route alias currently still works during migration: `/api/v1/reports/ga4-inspector`.
+## 8) CORS
+
+The backend supports extension/browser use with:
+
+- Methods: `POST`, `OPTIONS`
+- Headers: `Content-Type`, `Accept`
+
+If using strict origin policy, include your extension origin:
+
+- `chrome-extension://<EXTENSION_ID>`
+
+## 9) Notes for Your Dev
+
+- Always send `Accept: application/pdf`.
+- Read response as binary (`blob`/`arrayBuffer`) and save as `.pdf`.
+- Optional legacy alias: `/api/v1/reports/mixpanel-inspector`.

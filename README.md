@@ -1,12 +1,14 @@
-# GA4 Inspector Backend (Self-Hosted)
+# Inspector Backend (Self-Hosted)
 
-Dockerized Node.js backend for GA4 Inspector PDF report generation.
+Dockerized Node.js backend for GA4 Inspector and Mixpanel Inspector PDF report generation.
 
 ## API Endpoints
 
 - `POST /api/v1/ga4-inspector/reports` returns `application/pdf`
+- `POST /api/v1/mixpanel-inspector/reports` returns `application/pdf`
 - `GET /api/health` returns `{ "ok": true }`
 - Backward-compatible alias: `POST /api/v1/reports/ga4-inspector`
+- Backward-compatible alias: `POST /api/v1/reports/mixpanel-inspector`
 
 ## CI/CD Flow (GitHub Actions + GHCR)
 
@@ -62,5 +64,6 @@ Copy `.env.example` and adjust:
 
 ## References
 
-- Integration examples: `INTEGRATION_INSTRUCTIONS.md`
+- GA4 integration examples: `INTEGRATION_INSTRUCTIONS.md`
+- Mixpanel integration examples: `MIXPANEL_INTEGRATION_INSTRUCTIONS.md`
 - NAS + Cloudflare Tunnel setup: `NAS_CLOUDFLARE_TUNNEL_SETUP.md`
