@@ -3,6 +3,7 @@ const cors = require("cors");
 const config = require("./config");
 const reportsRouter = require("./routes/reports");
 const mixpanelReportsRouter = require("./routes/mixpanelReports");
+const siteTrackingRouter = require("./routes/siteTracking");
 const trackingRouter = require("./routes/tracking");
 const { initDb } = require("./lib/db");
 
@@ -78,6 +79,7 @@ app.use("/api/v1/ga4-inspector/reports", reportsRouter);
 app.use("/api/v1/reports/ga4-inspector", reportsRouter);
 app.use("/api/v1/mixpanel-inspector/reports", mixpanelReportsRouter);
 app.use("/api/v1/reports/mixpanel-inspector", mixpanelReportsRouter);
+app.use("/api/v1/tracking/site-events", siteTrackingRouter);
 app.use("/api/v1/tracking/events", trackingRouter);
 
 app.use((err, req, res, next) => {
