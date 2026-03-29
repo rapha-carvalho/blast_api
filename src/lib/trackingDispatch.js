@@ -17,6 +17,56 @@ const META_EVENT_NAME_MAP = {
   exit_intent_cta_click: "BlastExitIntentCtaClick",
 };
 
+const COURSE_CHECKOUT_CTA_EVENT_NAMES = new Set([
+  "cta_click",
+  "sticky_cta_click",
+  "exit_intent_cta_click",
+]);
+
+function looksLikeCheckoutUrl(value) {
+  const text = String(value || "").trim();
+  if (!text) {
+    return false;
+  }
+
+  try {
+    const url = new URL(text, "https://blastgroup.org");
+    return url.pathname.startsWith("/checkout/");
+  } catch {
+    return text.includes("/checkout/");
+  }
+}
+
+function isBlastgroupCourseCheckoutCta(trackingEvent) {
+  const metadata = trackingEvent.metadata || {};
+
+  if (trackingEvent.source_app !== "blastgroup_site") {
+    return false;
+  }
+
+  if (!COURSE_CHECKOUT_CTA_EVENT_NAMES.has(trackingEvent.event_name)) {
+    return false;
+  }
+
+  if (String(metadata.page_type || "") !== "course_landing") {
+    return false;
+  }
+
+  if (String(metadata.content_category || "") !== "course") {
+    return false;
+  }
+
+  return looksLikeCheckoutUrl(metadata.cta_destination);
+}
+
+function resolveMetaEventName(trackingEvent) {
+  if (isBlastgroupCourseCheckoutCta(trackingEvent)) {
+    return "AddToCart";
+  }
+
+  return META_EVENT_NAME_MAP[trackingEvent.event_name];
+}
+
 function normalizeEmail(email) {
   return String(email || "").trim().toLowerCase();
 }
@@ -53,6 +103,8 @@ function buildMetaCustomData(trackingEvent) {
 
   const commerce = trackingEvent.commerce || {};
   const metadata = trackingEvent.metadata || {};
+  const isProductIntentEvent =
+    trackingEvent.event_name === "view_content" || isBlastgroupCourseCheckoutCta(trackingEvent);
   const items = Array.isArray(commerce.items) ? commerce.items : [];
   const primaryItem = items[0] || {};
   const contentId = metadata.content_id;
@@ -67,7 +119,7 @@ function buildMetaCustomData(trackingEvent) {
         .filter(Boolean)
         .concat(contentId ? [contentId] : []),
     content_category: metadata.content_category,
-    content_type: trackingEvent.event_name === "view_content" ? "product" : undefined,
+    content_type: isProductIntentEvent ? "product" : undefined,
     num_items: items.reduce((acc, item) => acc + (Number(item.quantity) || 0), 0) || undefined,
     contents: items.map((item) => ({
       id: item.item_id,
@@ -94,7 +146,7 @@ function buildMetaCustomData(trackingEvent) {
 }
 
 function buildMetaPayload(trackingEvent) {
-  const metaEventName = META_EVENT_NAME_MAP[trackingEvent.event_name];
+  const metaEventName = resolveMetaEventName(trackingEvent);
   return {
     data: [
       {
@@ -251,7 +303,7 @@ async function sendMetaEvent(trackingEvent) {
     return { status: "skipped", reason: "meta_not_configured" };
   }
 
-  if (!META_EVENT_NAME_MAP[trackingEvent.event_name]) {
+  if (!resolveMetaEventName(trackingEvent)) {
     return { status: "skipped", reason: "meta_event_not_mapped" };
   }
 

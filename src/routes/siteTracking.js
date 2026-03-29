@@ -26,6 +26,11 @@ const ALLOWED_EVENT_NAMES = new Set([
 ]);
 
 const ALLOWED_HOSTNAMES = new Set(["blastgroup.org", "www.blastgroup.org"]);
+const COURSE_CHECKOUT_CTA_EVENT_NAMES = new Set([
+  "cta_click",
+  "sticky_cta_click",
+  "exit_intent_cta_click",
+]);
 
 function cleanString(value, maxLength = 4000) {
   const text = String(value || "")
@@ -54,6 +59,20 @@ function isAllowedHostname(hostname) {
   return ALLOWED_HOSTNAMES.has(String(hostname || "").trim().toLowerCase());
 }
 
+function looksLikeCheckoutUrl(value) {
+  const text = cleanString(value, 2000);
+  if (!text) {
+    return false;
+  }
+
+  try {
+    const url = new URL(text, "https://blastgroup.org");
+    return url.pathname.startsWith("/checkout/");
+  } catch {
+    return text.includes("/checkout/");
+  }
+}
+
 function sanitizeMetadata(body) {
   const metadata = {
     page_path: cleanString(body.page_path, 1000),
@@ -75,7 +94,14 @@ function sanitizeMetadata(body) {
 }
 
 function buildCommerce(eventName, body, metadata) {
-  if (eventName !== "view_content") {
+  const isViewContentEvent = eventName === "view_content";
+  const isCourseCheckoutCta =
+    COURSE_CHECKOUT_CTA_EVENT_NAMES.has(eventName) &&
+    metadata.page_type === "course_landing" &&
+    metadata.content_category === "course" &&
+    looksLikeCheckoutUrl(metadata.cta_destination);
+
+  if (!isViewContentEvent && !isCourseCheckoutCta) {
     return undefined;
   }
 
@@ -113,6 +139,7 @@ function buildCommerce(eventName, body, metadata) {
     coupon: metadata.coupon,
     item_id: itemId,
     item_name: itemName,
+    item_category: itemCategory,
     items: itemId || itemName ? [item] : undefined,
   };
 
