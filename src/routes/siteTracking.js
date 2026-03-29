@@ -107,13 +107,15 @@ function buildCommerce(eventName, body, metadata) {
 
   const value = toOptionalNumber(body.value);
   const valueCents = toOptionalNumber(body.value_cents);
+  const normalizedValue =
+    value !== undefined ? value : valueCents !== undefined ? Math.round(valueCents) / 100 : undefined;
   const currency = cleanString(body.currency, 12);
   const itemId = metadata.content_id;
   const itemName = metadata.content_name;
   const itemCategory = metadata.content_category;
 
   if (
-    value === undefined &&
+    normalizedValue === undefined &&
     valueCents === undefined &&
     !currency &&
     !itemId &&
@@ -129,12 +131,12 @@ function buildCommerce(eventName, body, metadata) {
     item_name: itemName,
     item_category: itemCategory,
     quantity: 1,
-    price: value,
+    price: normalizedValue,
   };
 
   const commerce = {
     currency,
-    value,
+    value: normalizedValue,
     value_cents: valueCents,
     coupon: metadata.coupon,
     item_id: itemId,
