@@ -3,6 +3,7 @@ const cors = require("cors");
 const config = require("./config");
 const reportsRouter = require("./routes/reports");
 const mixpanelReportsRouter = require("./routes/mixpanelReports");
+const trackingRouter = require("./routes/tracking");
 const { initDb } = require("./lib/db");
 
 function isAllowedExtensionOrigin(origin, allowedExtensionIds) {
@@ -51,7 +52,7 @@ const corsOptions = {
     callback(null, false);
   },
   methods: ["POST", "GET", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Accept"],
+  allowedHeaders: ["Content-Type", "Accept", "Authorization"],
   optionsSuccessStatus: 204,
 };
 
@@ -65,7 +66,7 @@ app.options("*", (req, res) => {
     res.setHeader("Vary", "Origin");
   }
   res.setHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Accept");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Accept, Authorization");
   res.status(204).end();
 });
 
@@ -77,6 +78,7 @@ app.use("/api/v1/ga4-inspector/reports", reportsRouter);
 app.use("/api/v1/reports/ga4-inspector", reportsRouter);
 app.use("/api/v1/mixpanel-inspector/reports", mixpanelReportsRouter);
 app.use("/api/v1/reports/mixpanel-inspector", mixpanelReportsRouter);
+app.use("/api/v1/tracking/events", trackingRouter);
 
 app.use((err, req, res, next) => {
   console.error("unhandled_error");

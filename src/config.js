@@ -43,4 +43,15 @@ module.exports = {
     .map((value) => value.trim())
     .filter(Boolean),
   logoPath: process.env.LOGO_PATH || path.resolve(process.cwd(), "blast-logo.png"),
+  trackingSharedToken: process.env.TRACKING_SHARED_TOKEN || "",
+  trackingRateLimitMax: parsePositiveInt(process.env.TRACKING_RATE_LIMIT_MAX, 120),
+  trackingRateLimitWindowMs: parsePositiveInt(process.env.TRACKING_RATE_LIMIT_WINDOW_MS, 60_000),
+  trackingIdempotencyTtlMs: parsePositiveInt(process.env.TRACKING_IDEMPOTENCY_TTL_MS, 7 * 24 * 60 * 60 * 1000),
+  trackingDispatchTimeoutMs: parsePositiveInt(process.env.TRACKING_DISPATCH_TIMEOUT_MS, 5000),
+  trackingDebugEnabled: parseBoolean(process.env.TRACKING_DEBUG_ENABLED, false),
+  metaPixelId: process.env.META_PIXEL_ID || "",
+  metaAccessToken: process.env.META_ACCESS_TOKEN || "",
+  metaTestEventCode: process.env.META_TEST_EVENT_CODE || "",
+  ga4MeasurementId: process.env.GA4_MEASUREMENT_ID || "",
+  ga4ApiSecret: process.env.GA4_API_SECRET || "",
 };
