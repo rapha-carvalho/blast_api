@@ -43,6 +43,7 @@ module.exports = {
     .map((value) => value.trim())
     .filter(Boolean),
   logoPath: process.env.LOGO_PATH || path.resolve(process.cwd(), "blast-logo.png"),
+  mentorshipApiToken: process.env.MENTORSHIP_API_TOKEN || "",
   trackingSharedToken: process.env.TRACKING_SHARED_TOKEN || "",
   trackingRateLimitMax: parsePositiveInt(process.env.TRACKING_RATE_LIMIT_MAX, 120),
   trackingRateLimitWindowMs: parsePositiveInt(process.env.TRACKING_RATE_LIMIT_WINDOW_MS, 60_000),

@@ -5,6 +5,7 @@ const reportsRouter = require("./routes/reports");
 const mixpanelReportsRouter = require("./routes/mixpanelReports");
 const siteTrackingRouter = require("./routes/siteTracking");
 const trackingRouter = require("./routes/tracking");
+const mentorshipRouter = require("./routes/mentorship");
 const { initDb } = require("./lib/db");
 
 function isAllowedExtensionOrigin(origin, allowedExtensionIds) {
@@ -81,6 +82,7 @@ app.use("/api/v1/mixpanel-inspector/reports", mixpanelReportsRouter);
 app.use("/api/v1/reports/mixpanel-inspector", mixpanelReportsRouter);
 app.use("/api/v1/tracking/site-events", siteTrackingRouter);
 app.use("/api/v1/tracking/events", trackingRouter);
+app.use("/api/v1/mentorship/bookings", mentorshipRouter);
 
 app.use((err, req, res, next) => {
   console.error("unhandled_error");
