@@ -6,6 +6,12 @@ const mixpanelReportsRouter = require("./routes/mixpanelReports");
 const siteTrackingRouter = require("./routes/siteTracking");
 const trackingRouter = require("./routes/tracking");
 const mentorshipRouter = require("./routes/mentorship");
+const mentorshipCheckoutRouter = require("./routes/mentorshipCheckout");
+const stripeRouter = require("./routes/stripe");
+const licenseRouter = require("./routes/license");
+const adminRouter = require("./routes/admin");
+const contactRouter = require("./routes/contact");
+const eventsRouter = require("./routes/events");
 const { initDb } = require("./lib/db");
 
 function isAllowedExtensionOrigin(origin, allowedExtensionIds) {
@@ -59,6 +65,12 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
+
+// Raw body for Stripe webhook — must come before express.json()
+app.use("/api/stripe/webhook", express.raw({ type: "application/json", limit: "64kb" }));
+
+app.use(express.json({ limit: `${config.maxBodyMb}mb` }));
+
 app.options("*", (req, res) => {
   const origin = req.headers.origin;
   if (!origin) {
@@ -83,6 +95,12 @@ app.use("/api/v1/reports/mixpanel-inspector", mixpanelReportsRouter);
 app.use("/api/v1/tracking/site-events", siteTrackingRouter);
 app.use("/api/v1/tracking/events", trackingRouter);
 app.use("/api/v1/mentorship/bookings", mentorshipRouter);
+app.use("/api/mentorship", mentorshipCheckoutRouter);
+app.use("/api/stripe", stripeRouter);
+app.use("/api/license", licenseRouter);
+app.use("/api/admin", adminRouter);
+app.use("/api/contact", contactRouter);
+app.use("/api/events", eventsRouter);
 
 app.use((err, req, res, next) => {
   console.error("unhandled_error");
