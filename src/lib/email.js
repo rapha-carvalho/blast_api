@@ -1,6 +1,8 @@
 const EMAIL_FROM = process.env.EMAIL_FROM || "noreply@blastgroup.org";
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const CONTACT_TO = process.env.CONTACT_INBOX || "contato@blastgroup.org";
+const MENTORSHIP_WAITLIST_NOTIFY_TO =
+  process.env.MENTORSHIP_WAITLIST_NOTIFY_TO || "raphael.carvalho@blastgroup.org";
 
 async function sendResend({ to, subject, html, text, reply_to }) {
   if (!RESEND_API_KEY) {
@@ -107,6 +109,136 @@ async function sendMentorshipConfirmationEmail({ to, buyerName, slotStart, slotE
   return sendResend({ to, subject, html, text });
 }
 
+function escapeHtml(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function formatWaitlistSubmittedAt(iso) {
+  try {
+    return new Intl.DateTimeFormat("pt-BR", {
+      timeZone: "America/Sao_Paulo",
+      dateStyle: "short",
+      timeStyle: "short",
+    }).format(new Date(iso));
+  } catch (error) {
+    return iso;
+  }
+}
+
+function waitlistNotificationLines(submission) {
+  return [
+    `Nome: ${submission.name}`,
+    `Email: ${submission.email}`,
+    `WhatsApp: ${submission.whatsapp}`,
+    `Area atual: ${submission.currentArea}`,
+    `Maior dificuldade: ${submission.biggestChallenge}`,
+    `Ferramentas: ${submission.tools.length ? submission.tools.join(", ") : "Nao informado"}`,
+    `Consentimento LGPD: ${submission.consent ? "Sim" : "Nao"}`,
+    `Pagina: ${submission.pageUrl || "Nao informado"}`,
+    `Enviado em: ${formatWaitlistSubmittedAt(submission.submittedAt)}`,
+    submission.ip ? `IP: ${submission.ip}` : null,
+  ].filter(Boolean);
+}
+
+async function sendMentorshipWaitlistConfirmationEmail(submission) {
+  const firstName = submission.name.split(/\s+/)[0] || submission.name;
+  const subject = "Recebemos seu cadastro na Mentoria Transicao para Dados";
+  const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#F8FAFC;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#111827">
+<table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 20px">
+<tr><td align="center">
+<table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;background:#fff;border:1px solid #E5E7EB;border-radius:12px;overflow:hidden">
+  <tr><td style="padding:28px 36px;border-bottom:3px solid #2563EB">
+    <p style="margin:0;font-size:22px;font-weight:700;color:#111827">BlastGroup</p>
+  </td></tr>
+  <tr><td style="padding:36px">
+    <h1 style="margin:0 0 12px;font-size:24px;color:#111827">Cadastro recebido</h1>
+    <p style="margin:0 0 16px;font-size:16px;line-height:1.6;color:#374151">Ola, <strong>${escapeHtml(firstName)}</strong>! Recebemos seu interesse na Mentoria Transicao para Dados.</p>
+    <p style="margin:0 0 24px;font-size:16px;line-height:1.6;color:#374151">Vamos enviar os detalhes da primeira turma beta por email e WhatsApp assim que as proximas etapas forem abertas.</p>
+    <div style="background:#EFF6FF;border-left:4px solid #2563EB;border-radius:8px;padding:18px 20px">
+      <p style="margin:0;font-size:14px;line-height:1.7;color:#1F2937">Enquanto isso, pode responder este email se quiser complementar alguma informacao sobre seu momento de carreira.</p>
+    </div>
+  </td></tr>
+  <tr><td style="padding:20px 36px;border-top:1px solid #E5E7EB;background:#F9FAFB">
+    <p style="margin:0;color:#6B7280;font-size:12px">Giovanna Godoi e BlastGroup &middot; <a href="https://blastgroup.org" style="color:#2563EB">blastgroup.org</a></p>
+  </td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>`;
+
+  const text = [
+    `Ola, ${firstName}!`,
+    "",
+    "Recebemos seu interesse na Mentoria Transicao para Dados.",
+    "Vamos enviar os detalhes da primeira turma beta por email e WhatsApp assim que as proximas etapas forem abertas.",
+    "",
+    "Giovanna Godoi e BlastGroup",
+    "https://blastgroup.org",
+  ].join("\n");
+
+  return sendResend({ to: submission.email, subject, html, text });
+}
+
+async function sendMentorshipWaitlistNotificationEmail(submission) {
+  const to = MENTORSHIP_WAITLIST_NOTIFY_TO.split(",")
+    .map((email) => email.trim())
+    .filter(Boolean);
+
+  if (to.length === 0) {
+    return { ok: false, reason: "notification_recipient_not_configured" };
+  }
+
+  const subject = `Novo cadastro na mentoria: ${submission.name}`;
+  const lines = waitlistNotificationLines(submission);
+  const text = [
+    "Novo formulario preenchido na lista de espera da Mentoria Transicao para Dados.",
+    "",
+    ...lines,
+    "",
+    "Blast Website",
+  ].join("\n");
+
+  const htmlRows = lines
+    .map((line) => {
+      const separatorIndex = line.indexOf(":");
+      const label = separatorIndex >= 0 ? line.slice(0, separatorIndex) : "Info";
+      const value = separatorIndex >= 0 ? line.slice(separatorIndex + 1).trim() : line;
+      return `<tr><td style="padding:8px 12px;border-bottom:1px solid #E5E7EB;font-weight:700;color:#111827">${escapeHtml(label)}</td><td style="padding:8px 12px;border-bottom:1px solid #E5E7EB;color:#374151">${escapeHtml(value)}</td></tr>`;
+    })
+    .join("");
+
+  const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#F8FAFC;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#111827">
+<table width="100%" cellpadding="0" cellspacing="0" style="padding:32px 16px">
+<tr><td align="center">
+<table width="640" cellpadding="0" cellspacing="0" style="max-width:640px;background:#fff;border:1px solid #E5E7EB;border-radius:12px;overflow:hidden">
+  <tr><td style="padding:28px 32px;border-bottom:3px solid #2563EB">
+    <h1 style="margin:0;font-size:22px;color:#111827">Novo cadastro na mentoria</h1>
+  </td></tr>
+  <tr><td style="padding:28px 32px">
+    <p style="margin:0 0 20px;font-size:15px;color:#374151">Um novo formulario foi preenchido na lista de espera da Mentoria Transicao para Dados.</p>
+    <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #E5E7EB;border-radius:8px;border-collapse:collapse">${htmlRows}</table>
+  </td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>`;
+
+  return sendResend({ to, subject, html, text, reply_to: submission.email });
+}
+
 async function sendContactEmail({ email, company, message, lang = "pt-BR", pageUrl, userAgent, ip }) {
   const isEnglish = lang === "en";
   const subject = isEnglish ? "New contact form message" : "Novo contato pelo site";
@@ -125,4 +257,10 @@ async function sendContactEmail({ email, company, message, lang = "pt-BR", pageU
   return sendResend({ to: CONTACT_TO, subject, text, reply_to: email });
 }
 
-module.exports = { sendLicenseEmail, sendMentorshipConfirmationEmail, sendContactEmail };
+module.exports = {
+  sendLicenseEmail,
+  sendMentorshipConfirmationEmail,
+  sendMentorshipWaitlistConfirmationEmail,
+  sendMentorshipWaitlistNotificationEmail,
+  sendContactEmail,
+};
