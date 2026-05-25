@@ -135,11 +135,11 @@ function waitlistNotificationLines(submission) {
     `Nome: ${submission.name}`,
     `Email: ${submission.email}`,
     `WhatsApp: ${submission.whatsapp}`,
-    `Area atual: ${submission.currentArea}`,
+    `Área atual: ${submission.currentArea}`,
     `Maior dificuldade: ${submission.biggestChallenge}`,
-    `Ferramentas: ${submission.tools.length ? submission.tools.join(", ") : "Nao informado"}`,
-    `Consentimento LGPD: ${submission.consent ? "Sim" : "Nao"}`,
-    `Pagina: ${submission.pageUrl || "Nao informado"}`,
+    `Ferramentas: ${submission.tools.length ? submission.tools.join(", ") : "Não informado"}`,
+    `Consentimento LGPD: ${submission.consent ? "Sim" : "Não"}`,
+    `Página: ${submission.pageUrl || "Não informado"}`,
     `Enviado em: ${formatWaitlistSubmittedAt(submission.submittedAt)}`,
     submission.ip ? `IP: ${submission.ip}` : null,
   ].filter(Boolean);
@@ -147,7 +147,7 @@ function waitlistNotificationLines(submission) {
 
 async function sendMentorshipWaitlistConfirmationEmail(submission) {
   const firstName = submission.name.split(/\s+/)[0] || submission.name;
-  const subject = "Recebemos seu cadastro na Mentoria Transicao para Dados";
+  const subject = "Recebemos seu cadastro na Mentoria Transição para Dados";
   const html = `<!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
@@ -160,14 +160,11 @@ async function sendMentorshipWaitlistConfirmationEmail(submission) {
   </td></tr>
   <tr><td style="padding:36px">
     <h1 style="margin:0 0 12px;font-size:24px;color:#111827">Cadastro recebido</h1>
-    <p style="margin:0 0 16px;font-size:16px;line-height:1.6;color:#374151">Ola, <strong>${escapeHtml(firstName)}</strong>! Recebemos seu interesse na Mentoria Transicao para Dados.</p>
-    <p style="margin:0 0 24px;font-size:16px;line-height:1.6;color:#374151">Vamos enviar os detalhes da primeira turma beta por email e WhatsApp assim que as proximas etapas forem abertas.</p>
-    <div style="background:#EFF6FF;border-left:4px solid #2563EB;border-radius:8px;padding:18px 20px">
-      <p style="margin:0;font-size:14px;line-height:1.7;color:#1F2937">Enquanto isso, pode responder este email se quiser complementar alguma informacao sobre seu momento de carreira.</p>
-    </div>
+    <p style="margin:0 0 16px;font-size:16px;line-height:1.6;color:#374151">Olá, <strong>${escapeHtml(firstName)}</strong>! Recebemos seu interesse na Mentoria Transição para Dados.</p>
+    <p style="margin:0 0 24px;font-size:16px;line-height:1.6;color:#374151">Em breve, enviaremos os detalhes da primeira turma beta por e-mail.</p>
   </td></tr>
   <tr><td style="padding:20px 36px;border-top:1px solid #E5E7EB;background:#F9FAFB">
-    <p style="margin:0;color:#6B7280;font-size:12px">Giovanna Godoi e BlastGroup &middot; <a href="https://blastgroup.org" style="color:#2563EB">blastgroup.org</a></p>
+    <p style="margin:0;color:#6B7280;font-size:12px"><a href="https://blastgroup.org" style="color:#2563EB">blastgroup.org</a></p>
   </td></tr>
 </table>
 </td></tr>
@@ -176,12 +173,11 @@ async function sendMentorshipWaitlistConfirmationEmail(submission) {
 </html>`;
 
   const text = [
-    `Ola, ${firstName}!`,
+    `Olá, ${firstName}!`,
     "",
-    "Recebemos seu interesse na Mentoria Transicao para Dados.",
-    "Vamos enviar os detalhes da primeira turma beta por email e WhatsApp assim que as proximas etapas forem abertas.",
+    "Recebemos seu interesse na Mentoria Transição para Dados.",
+    "Em breve, enviaremos os detalhes da primeira turma beta por e-mail.",
     "",
-    "Giovanna Godoi e BlastGroup",
     "https://blastgroup.org",
   ].join("\n");
 
@@ -200,7 +196,7 @@ async function sendMentorshipWaitlistNotificationEmail(submission) {
   const subject = `Novo cadastro na mentoria: ${submission.name}`;
   const lines = waitlistNotificationLines(submission);
   const text = [
-    "Novo formulario preenchido na lista de espera da Mentoria Transicao para Dados.",
+    "Novo formulário preenchido na lista de espera da Mentoria Transição para Dados.",
     "",
     ...lines,
     "",
@@ -227,7 +223,7 @@ async function sendMentorshipWaitlistNotificationEmail(submission) {
     <h1 style="margin:0;font-size:22px;color:#111827">Novo cadastro na mentoria</h1>
   </td></tr>
   <tr><td style="padding:28px 32px">
-    <p style="margin:0 0 20px;font-size:15px;color:#374151">Um novo formulario foi preenchido na lista de espera da Mentoria Transicao para Dados.</p>
+    <p style="margin:0 0 20px;font-size:15px;color:#374151">Um novo formulário foi preenchido na lista de espera da Mentoria Transição para Dados.</p>
     <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #E5E7EB;border-radius:8px;border-collapse:collapse">${htmlRows}</table>
   </td></tr>
 </table>
