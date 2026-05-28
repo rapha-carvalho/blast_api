@@ -3,6 +3,9 @@ const { google } = require("googleapis");
 const WAITLIST_SPREADSHEET_ID =
   process.env.MENTORSHIP_WAITLIST_SPREADSHEET_ID || "1t-5si3mrSK81yBYOeuvKlraKTAuzv2BRj-L1jiQODeM";
 const WAITLIST_SHEET_NAME = process.env.MENTORSHIP_WAITLIST_SHEET_NAME || "Inscricoes";
+const SQL_CHEATSHEET_SPREADSHEET_ID =
+  process.env.SQL_CHEATSHEET_SPREADSHEET_ID || "1rKPDMGBNclAdWzM3P5L59nbvR7Z_pusB4zR1-3gmcVY";
+const SQL_CHEATSHEET_SHEET_NAME = process.env.SQL_CHEATSHEET_SHEET_NAME || "Acessos";
 
 const WAITLIST_HEADERS = [
   "Enviado em",
@@ -14,6 +17,28 @@ const WAITLIST_HEADERS = [
   "Ferramentas",
   "Consentimento LGPD",
   "Pagina",
+  "User-Agent",
+  "IP",
+];
+
+const SQL_CHEATSHEET_HEADERS = [
+  "Acessado em",
+  "Nome",
+  "Email",
+  "Nivel",
+  "Cargo ou interesse",
+  "Consentimento LGPD",
+  "Origem",
+  "Pagina",
+  "UTM Source",
+  "UTM Medium",
+  "UTM Campaign",
+  "UTM Content",
+  "UTM Term",
+  "GCLID",
+  "GBRAID",
+  "WBRAID",
+  "FBCLID",
   "User-Agent",
   "IP",
 ];
@@ -43,25 +68,42 @@ function getSheetsAuth() {
   return null;
 }
 
-async function ensureWaitlistSheet(sheets) {
+function toColumnName(index) {
+  let current = index;
+  let columnName = "";
+
+  while (current > 0) {
+    const remainder = (current - 1) % 26;
+    columnName = String.fromCharCode(65 + remainder) + columnName;
+    current = Math.floor((current - 1) / 26);
+  }
+
+  return columnName;
+}
+
+function quoteSheetName(sheetName) {
+  return `'${String(sheetName).replace(/'/g, "''")}'`;
+}
+
+async function ensureSheetWithHeaders(sheets, spreadsheetId, sheetName, headers) {
   const spreadsheet = await sheets.spreadsheets.get({
-    spreadsheetId: WAITLIST_SPREADSHEET_ID,
+    spreadsheetId,
     fields: "sheets.properties(sheetId,title)",
   });
 
   const existingSheet = spreadsheet.data.sheets?.find(
-    (sheet) => sheet.properties?.title === WAITLIST_SHEET_NAME
+    (sheet) => sheet.properties?.title === sheetName
   );
 
   if (!existingSheet) {
     await sheets.spreadsheets.batchUpdate({
-      spreadsheetId: WAITLIST_SPREADSHEET_ID,
+      spreadsheetId,
       requestBody: {
         requests: [
           {
             addSheet: {
               properties: {
-                title: WAITLIST_SHEET_NAME,
+                title: sheetName,
               },
             },
           },
@@ -70,21 +112,22 @@ async function ensureWaitlistSheet(sheets) {
     });
   }
 
-  const headerRange = `${WAITLIST_SHEET_NAME}!A1:K1`;
+  const lastColumn = toColumnName(headers.length);
+  const headerRange = `${quoteSheetName(sheetName)}!A1:${lastColumn}1`;
   const headerResponse = await sheets.spreadsheets.values.get({
-    spreadsheetId: WAITLIST_SPREADSHEET_ID,
+    spreadsheetId,
     range: headerRange,
   });
 
   const currentHeaders = headerResponse.data.values?.[0] || [];
-  const missingOrDifferent = WAITLIST_HEADERS.some((header, index) => currentHeaders[index] !== header);
+  const missingOrDifferent = headers.some((header, index) => currentHeaders[index] !== header);
 
   if (missingOrDifferent) {
     await sheets.spreadsheets.values.update({
-      spreadsheetId: WAITLIST_SPREADSHEET_ID,
+      spreadsheetId,
       range: headerRange,
       valueInputOption: "RAW",
-      requestBody: { values: [WAITLIST_HEADERS] },
+      requestBody: { values: [headers] },
     });
   }
 }
@@ -98,7 +141,12 @@ async function appendWaitlistSubmission(submission) {
 
   try {
     const sheets = google.sheets({ version: "v4", auth });
-    await ensureWaitlistSheet(sheets);
+    await ensureSheetWithHeaders(
+      sheets,
+      WAITLIST_SPREADSHEET_ID,
+      WAITLIST_SHEET_NAME,
+      WAITLIST_HEADERS
+    );
 
     const row = [
       submission.submittedAt,
@@ -116,7 +164,7 @@ async function appendWaitlistSubmission(submission) {
 
     await sheets.spreadsheets.values.append({
       spreadsheetId: WAITLIST_SPREADSHEET_ID,
-      range: `${WAITLIST_SHEET_NAME}!A:K`,
+      range: `${quoteSheetName(WAITLIST_SHEET_NAME)}!A:K`,
       valueInputOption: "RAW",
       insertDataOption: "INSERT_ROWS",
       requestBody: { values: [row] },
@@ -129,8 +177,64 @@ async function appendWaitlistSubmission(submission) {
   }
 }
 
+async function appendSqlCheatsheetAccess(access) {
+  const auth = getSheetsAuth();
+  if (!auth) {
+    console.warn("sheets: Google credentials not set; skipping SQL cheatsheet access append.");
+    return { ok: false, reason: "sheets_not_configured" };
+  }
+
+  try {
+    const sheets = google.sheets({ version: "v4", auth });
+    await ensureSheetWithHeaders(
+      sheets,
+      SQL_CHEATSHEET_SPREADSHEET_ID,
+      SQL_CHEATSHEET_SHEET_NAME,
+      SQL_CHEATSHEET_HEADERS
+    );
+
+    const row = [
+      access.accessedAt,
+      access.name,
+      access.email,
+      access.level,
+      access.role,
+      access.consent ? "Sim" : "Nao",
+      access.source,
+      access.pageUrl,
+      access.utmSource,
+      access.utmMedium,
+      access.utmCampaign,
+      access.utmContent,
+      access.utmTerm,
+      access.gclid,
+      access.gbraid,
+      access.wbraid,
+      access.fbclid,
+      access.userAgent,
+      access.ip,
+    ];
+
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: SQL_CHEATSHEET_SPREADSHEET_ID,
+      range: `${quoteSheetName(SQL_CHEATSHEET_SHEET_NAME)}!A:S`,
+      valueInputOption: "RAW",
+      insertDataOption: "INSERT_ROWS",
+      requestBody: { values: [row] },
+    });
+
+    return { ok: true };
+  } catch (error) {
+    console.error("sheets: SQL cheatsheet access append failed:", error.message);
+    return { ok: false, reason: error.message };
+  }
+}
+
 module.exports = {
   appendWaitlistSubmission,
+  appendSqlCheatsheetAccess,
   WAITLIST_SHEET_NAME,
   WAITLIST_SPREADSHEET_ID,
+  SQL_CHEATSHEET_SHEET_NAME,
+  SQL_CHEATSHEET_SPREADSHEET_ID,
 };
