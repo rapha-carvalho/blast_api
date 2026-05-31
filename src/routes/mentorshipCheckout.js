@@ -118,6 +118,54 @@ async function findActivePromotionCode(couponCode) {
   return promotionCode;
 }
 
+async function findActiveCoupon(couponCode) {
+  if (!couponCode) return null;
+
+  try {
+    const coupon = await stripe.coupons.retrieve(couponCode);
+    if (coupon && coupon.valid !== false) {
+      return coupon;
+    }
+  } catch (error) {
+    if (error.code !== "resource_missing") {
+      throw error;
+    }
+  }
+
+  const error = new Error("invalid_coupon");
+  error.code = "invalid_coupon";
+  throw error;
+}
+
+async function findDiscountForCouponCode(couponCode) {
+  if (!couponCode) return null;
+
+  try {
+    const promotionCode = await findActivePromotionCode(couponCode);
+    return {
+      discount: { promotion_code: promotionCode.id },
+      metadata: {
+        coupon_code: couponCode,
+        promotion_code: promotionCode.id,
+        coupon: promotionCode.coupon?.id,
+      },
+    };
+  } catch (error) {
+    if (error.code !== "invalid_coupon") {
+      throw error;
+    }
+  }
+
+  const coupon = await findActiveCoupon(couponCode);
+  return {
+    discount: { coupon: coupon.id },
+    metadata: {
+      coupon_code: couponCode,
+      coupon: coupon.id,
+    },
+  };
+}
+
 async function buildGiovannaInstallmentOptions() {
   const configuredOptions = Object.entries(GIOVANNA_PRICE_IDS)
     .map(([installments, priceId]) => ({
@@ -244,10 +292,13 @@ router.post("/giovanna/checkout-session", async (req, res) => {
     if (customerName) metadata.buyer_name = customerName.slice(0, 500);
     if (customerEmail && EMAIL_RE.test(customerEmail)) metadata.buyer_email = customerEmail;
     if (customerPhone) metadata.buyer_whatsapp = customerPhone.slice(0, 500);
-    if (couponCode) metadata.coupon_code = couponCode.slice(0, 500);
 
-    const promotionCode = await findActivePromotionCode(couponCode);
-    if (promotionCode) metadata.promotion_code = promotionCode.id;
+    const discountConfig = await findDiscountForCouponCode(couponCode);
+    if (discountConfig) {
+      Object.entries(discountConfig.metadata).forEach(([key, value]) => {
+        if (value) metadata[key] = String(value).slice(0, 500);
+      });
+    }
 
     const sessionParams = {
       mode: "payment",
@@ -264,8 +315,8 @@ router.post("/giovanna/checkout-session", async (req, res) => {
       payment_intent_data: { metadata },
     };
 
-    if (promotionCode) {
-      sessionParams.discounts = [{ promotion_code: promotionCode.id }];
+    if (discountConfig) {
+      sessionParams.discounts = [discountConfig.discount];
     }
 
     if (customerEmail && EMAIL_RE.test(customerEmail)) {
@@ -278,7 +329,7 @@ router.post("/giovanna/checkout-session", async (req, res) => {
       sessionId: session.id,
     });
   } catch (error) {
-    if (error.code === "invalid_coupon") {
+    if (error.code === "invalid_coupon" || /coupon|promotion code|discount/i.test(error.message || "")) {
       return res.status(400).json({ error: "invalid_coupon" });
     }
 
