@@ -1,5 +1,15 @@
 const express = require("express");
-const { stripe, PRICE_ID_MENTORSHIP } = require("../lib/stripeClient");
+const {
+  stripe,
+  STRIPE_PUBLISHABLE_KEY,
+  PRICE_ID_MENTORSHIP,
+  PRICE_ID_MENTORSHIP_GIOVANNA_1X,
+  PRICE_ID_MENTORSHIP_GIOVANNA_2X,
+  PRICE_ID_MENTORSHIP_GIOVANNA_3X,
+  PRICE_ID_MENTORSHIP_GIOVANNA_4X,
+  PRICE_ID_MENTORSHIP_GIOVANNA_5X,
+  PRICE_ID_MENTORSHIP_GIOVANNA_6X,
+} = require("../lib/stripeClient");
 const { getAvailableSlots } = require("../lib/calendar");
 const {
   sendMentorshipWaitlistConfirmationEmail,
@@ -11,6 +21,14 @@ const router = express.Router();
 const SITE_URL = process.env.SITE_URL || "https://blastgroup.org";
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MAX_TEXT_LENGTH = 2000;
+const GIOVANNA_PRICE_IDS = {
+  1: PRICE_ID_MENTORSHIP_GIOVANNA_1X,
+  2: PRICE_ID_MENTORSHIP_GIOVANNA_2X,
+  3: PRICE_ID_MENTORSHIP_GIOVANNA_3X,
+  4: PRICE_ID_MENTORSHIP_GIOVANNA_4X,
+  5: PRICE_ID_MENTORSHIP_GIOVANNA_5X,
+  6: PRICE_ID_MENTORSHIP_GIOVANNA_6X,
+};
 
 function getClientIp(req) {
   return (
@@ -70,6 +88,61 @@ function validateWaitlistSubmission(submission) {
   return errors;
 }
 
+function normalizeInstallments(value) {
+  const parsed = Number.parseInt(value, 10);
+  return Number.isInteger(parsed) && parsed >= 1 && parsed <= 6 ? parsed : 1;
+}
+
+function getGiovannaPriceId(installments) {
+  return GIOVANNA_PRICE_IDS[installments] || null;
+}
+
+async function buildGiovannaInstallmentOptions() {
+  const configuredOptions = Object.entries(GIOVANNA_PRICE_IDS)
+    .map(([installments, priceId]) => ({
+      installments: Number(installments),
+      priceId,
+    }))
+    .filter((option) => Boolean(option.priceId));
+
+  if (!stripe) {
+    return configuredOptions.map((option) => ({
+      installments: option.installments,
+      amount: null,
+      currency: "brl",
+      label: `${option.installments}x`,
+    }));
+  }
+
+  const options = await Promise.all(
+    configuredOptions.map(async (option) => {
+      try {
+        const price = await stripe.prices.retrieve(option.priceId, { expand: ["product"] });
+        const productName =
+          price.product && typeof price.product === "object" ? price.product.name : "Mentoria Transição para Dados";
+
+        return {
+          installments: option.installments,
+          amount: price.unit_amount,
+          currency: price.currency,
+          label: price.nickname || `${option.installments}x`,
+          productName,
+        };
+      } catch (error) {
+        console.error("Giovanna price retrieve failed:", option.installments, error.message);
+        return {
+          installments: option.installments,
+          amount: null,
+          currency: "brl",
+          label: `${option.installments}x`,
+        };
+      }
+    })
+  );
+
+  return options.sort((a, b) => a.installments - b.installments);
+}
+
 router.get("/availability", async (req, res) => {
   try {
     const slots = await getAvailableSlots(30);
@@ -115,6 +188,71 @@ router.post("/waitlist", async (req, res) => {
     ok: true,
     sheets: sheetResult.ok ? "ok" : "failed",
   });
+});
+
+router.get("/giovanna/checkout-config", async (req, res) => {
+  try {
+    const installmentOptions = await buildGiovannaInstallmentOptions();
+    return res.json({
+      publishableKey: STRIPE_PUBLISHABLE_KEY || null,
+      installmentOptions,
+    });
+  } catch (error) {
+    console.error("Giovanna checkout config error:", error.message);
+    return res.status(500).json({ error: "checkout_config_failed" });
+  }
+});
+
+router.post("/giovanna/checkout-session", async (req, res) => {
+  const body = req.body || {};
+  const installments = normalizeInstallments(body.installments);
+  const priceId = getGiovannaPriceId(installments);
+  const customerEmail = trimField(body.customer_email || body.email, 254).toLowerCase();
+  const customerName = trimField(body.customer_name || body.name, 120);
+  const customerPhone = trimField(body.customer_phone || body.whatsapp || body.phone, 40);
+
+  if (!stripe || !priceId) {
+    return res.status(500).json({ error: "checkout_not_configured" });
+  }
+
+  try {
+    const metadata = {
+      type: "mentorship_giovanna",
+      product: "mentoria_transicao_para_dados_giovanna",
+      installments: String(installments),
+    };
+    if (customerName) metadata.buyer_name = customerName.slice(0, 500);
+    if (customerEmail && EMAIL_RE.test(customerEmail)) metadata.buyer_email = customerEmail;
+    if (customerPhone) metadata.buyer_whatsapp = customerPhone.slice(0, 500);
+
+    const sessionParams = {
+      mode: "payment",
+      ui_mode: "embedded",
+      payment_method_types: ["card"],
+      payment_method_options: {
+        card: {
+          installments: { enabled: true },
+        },
+      },
+      line_items: [{ price: priceId, quantity: 1 }],
+      return_url: `${SITE_URL}/mentoria-transicao-para-dados/checkout/obrigado?session_id={CHECKOUT_SESSION_ID}`,
+      metadata,
+      payment_intent_data: { metadata },
+    };
+
+    if (customerEmail && EMAIL_RE.test(customerEmail)) {
+      sessionParams.customer_email = customerEmail;
+    }
+
+    const session = await stripe.checkout.sessions.create(sessionParams);
+    return res.json({
+      clientSecret: session.client_secret,
+      sessionId: session.id,
+    });
+  } catch (error) {
+    console.error("Giovanna checkout session error:", error);
+    return res.status(500).json({ error: "checkout_session_failed" });
+  }
 });
 
 router.post("/checkout", async (req, res) => {

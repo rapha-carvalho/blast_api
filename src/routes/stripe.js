@@ -2,7 +2,11 @@ const express = require("express");
 const { stripe, STRIPE_WEBHOOK_SECRET, PRICE_ID_MONTHLY, PRICE_ID_YEARLY, PRICE_ID_ONETIME } = require("../lib/stripeClient");
 const { getSupabase } = require("../lib/supabase");
 const { generateLicenseKey } = require("../lib/licenseKey");
-const { sendLicenseEmail, sendMentorshipConfirmationEmail } = require("../lib/email");
+const {
+  sendLicenseEmail,
+  sendMentorshipConfirmationEmail,
+  sendGiovannaMentorshipPurchaseEmail,
+} = require("../lib/email");
 const { createMentorshipEvent } = require("../lib/calendar");
 const { createBooking } = require("../lib/mentorshipDb");
 
@@ -53,6 +57,28 @@ async function handleMentorshipBooking(session) {
   await sendMentorshipConfirmationEmail({ to: buyerEmail, buyerName, slotStart, slotEnd, meetLink });
 }
 
+async function handleGiovannaMentorshipPurchase(session) {
+  const buyerEmail = session.customer_details?.email || session.customer_email || session.metadata?.buyer_email;
+  const buyerName = session.customer_details?.name || session.metadata?.buyer_name || "Cliente";
+
+  if (!buyerEmail) {
+    console.error("Giovanna mentorship webhook: missing buyer email", { sessionId: session.id });
+    return;
+  }
+
+  const result = await sendGiovannaMentorshipPurchaseEmail({
+    to: buyerEmail,
+    buyerName,
+  });
+
+  if (!result.ok) {
+    console.error("Giovanna mentorship confirmation email failed", {
+      sessionId: session.id,
+      reason: result.reason,
+    });
+  }
+}
+
 // Webhook — raw body is applied in index.js before this route
 router.post("/webhook", async (req, res) => {
   const sig = req.headers["stripe-signature"];
@@ -78,6 +104,11 @@ router.post("/webhook", async (req, res) => {
 
         if (session.metadata?.type === "mentorship") {
           await handleMentorshipBooking(session);
+          break;
+        }
+
+        if (session.metadata?.type === "mentorship_giovanna") {
+          await handleGiovannaMentorshipPurchase(session);
           break;
         }
 
