@@ -94,6 +94,30 @@ function getGiovannaPriceId(installments) {
   return GIOVANNA_PRICE_IDS[installments] || null;
 }
 
+function normalizeCouponCode(value) {
+  return trimField(value, 80);
+}
+
+async function findActivePromotionCode(couponCode) {
+  if (!couponCode) return null;
+
+  const promotionCodes = await stripe.promotionCodes.list({
+    active: true,
+    code: couponCode,
+    expand: ["data.coupon"],
+    limit: 1,
+  });
+  const promotionCode = promotionCodes.data[0];
+
+  if (!promotionCode || promotionCode.coupon?.valid === false) {
+    const error = new Error("invalid_coupon");
+    error.code = "invalid_coupon";
+    throw error;
+  }
+
+  return promotionCode;
+}
+
 async function buildGiovannaInstallmentOptions() {
   const configuredOptions = Object.entries(GIOVANNA_PRICE_IDS)
     .map(([installments, priceId]) => ({
@@ -205,6 +229,7 @@ router.post("/giovanna/checkout-session", async (req, res) => {
   const customerEmail = trimField(body.customer_email || body.email, 254).toLowerCase();
   const customerName = trimField(body.customer_name || body.name, 120);
   const customerPhone = trimField(body.customer_phone || body.whatsapp || body.phone, 40);
+  const couponCode = normalizeCouponCode(body.coupon_code || body.couponCode || body.promotion_code || body.promotionCode);
 
   if (!stripe || !priceId) {
     return res.status(500).json({ error: "checkout_not_configured" });
@@ -219,6 +244,10 @@ router.post("/giovanna/checkout-session", async (req, res) => {
     if (customerName) metadata.buyer_name = customerName.slice(0, 500);
     if (customerEmail && EMAIL_RE.test(customerEmail)) metadata.buyer_email = customerEmail;
     if (customerPhone) metadata.buyer_whatsapp = customerPhone.slice(0, 500);
+    if (couponCode) metadata.coupon_code = couponCode.slice(0, 500);
+
+    const promotionCode = await findActivePromotionCode(couponCode);
+    if (promotionCode) metadata.promotion_code = promotionCode.id;
 
     const sessionParams = {
       mode: "payment",
@@ -235,6 +264,10 @@ router.post("/giovanna/checkout-session", async (req, res) => {
       payment_intent_data: { metadata },
     };
 
+    if (promotionCode) {
+      sessionParams.discounts = [{ promotion_code: promotionCode.id }];
+    }
+
     if (customerEmail && EMAIL_RE.test(customerEmail)) {
       sessionParams.customer_email = customerEmail;
     }
@@ -245,6 +278,10 @@ router.post("/giovanna/checkout-session", async (req, res) => {
       sessionId: session.id,
     });
   } catch (error) {
+    if (error.code === "invalid_coupon") {
+      return res.status(400).json({ error: "invalid_coupon" });
+    }
+
     console.error("Giovanna checkout session error:", error);
     return res.status(500).json({ error: "checkout_session_failed" });
   }
