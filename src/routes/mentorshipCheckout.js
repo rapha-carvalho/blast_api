@@ -11,10 +11,7 @@ const {
   PRICE_ID_MENTORSHIP_GIOVANNA_6X,
 } = require("../lib/stripeClient");
 const { getAvailableSlots } = require("../lib/calendar");
-const {
-  sendMentorshipWaitlistConfirmationEmail,
-  sendMentorshipWaitlistNotificationEmail,
-} = require("../lib/email");
+const { sendMentorshipWaitlistNotificationEmail } = require("../lib/email");
 const { appendWaitlistSubmission } = require("../lib/sheets");
 
 const router = express.Router();
@@ -166,15 +163,13 @@ router.post("/waitlist", async (req, res) => {
     return res.status(400).json({ error: "validation_failed", fields: errors });
   }
 
-  const [sheetResult, confirmationResult, notificationResult] = await Promise.all([
+  const [sheetResult, notificationResult] = await Promise.all([
     appendWaitlistSubmission(submission),
-    sendMentorshipWaitlistConfirmationEmail(submission),
     sendMentorshipWaitlistNotificationEmail(submission),
   ]);
 
-  if (!confirmationResult.ok || !notificationResult.ok) {
-    console.error("Waitlist email failed", {
-      confirmation: confirmationResult,
+  if (!notificationResult.ok) {
+    console.error("Waitlist notification email failed", {
       notification: notificationResult,
     });
     return res.status(503).json({ error: "email_failed" });

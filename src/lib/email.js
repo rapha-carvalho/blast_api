@@ -145,45 +145,6 @@ function waitlistNotificationLines(submission) {
   ].filter(Boolean);
 }
 
-async function sendMentorshipWaitlistConfirmationEmail(submission) {
-  const firstName = submission.name.split(/\s+/)[0] || submission.name;
-  const subject = "Recebemos seu cadastro na Mentoria Transição para Dados";
-  const html = `<!DOCTYPE html>
-<html lang="pt-BR">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#F8FAFC;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#111827">
-<table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 20px">
-<tr><td align="center">
-<table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;background:#fff;border:1px solid #E5E7EB;border-radius:12px;overflow:hidden">
-  <tr><td style="padding:28px 36px;border-bottom:3px solid #2563EB">
-    <p style="margin:0;font-size:22px;font-weight:700;color:#111827">BlastGroup</p>
-  </td></tr>
-  <tr><td style="padding:36px">
-    <h1 style="margin:0 0 12px;font-size:24px;color:#111827">Cadastro recebido</h1>
-    <p style="margin:0 0 16px;font-size:16px;line-height:1.6;color:#374151">Olá, <strong>${escapeHtml(firstName)}</strong>! Recebemos seu interesse na Mentoria Transição para Dados.</p>
-    <p style="margin:0 0 24px;font-size:16px;line-height:1.6;color:#374151">Em breve, enviaremos os detalhes da primeira turma beta por e-mail.</p>
-  </td></tr>
-  <tr><td style="padding:20px 36px;border-top:1px solid #E5E7EB;background:#F9FAFB">
-    <p style="margin:0;color:#6B7280;font-size:12px"><a href="https://blastgroup.org" style="color:#2563EB">blastgroup.org</a></p>
-  </td></tr>
-</table>
-</td></tr>
-</table>
-</body>
-</html>`;
-
-  const text = [
-    `Olá, ${firstName}!`,
-    "",
-    "Recebemos seu interesse na Mentoria Transição para Dados.",
-    "Em breve, enviaremos os detalhes da primeira turma beta por e-mail.",
-    "",
-    "https://blastgroup.org",
-  ].join("\n");
-
-  return sendResend({ to: submission.email, subject, html, text });
-}
-
 async function sendMentorshipWaitlistNotificationEmail(submission) {
   const to = MENTORSHIP_WAITLIST_NOTIFY_TO.split(",")
     .map((email) => email.trim())
@@ -298,7 +259,6 @@ async function sendContactEmail({ email, company, message, lang = "pt-BR", pageU
 module.exports = {
   sendLicenseEmail,
   sendMentorshipConfirmationEmail,
-  sendMentorshipWaitlistConfirmationEmail,
   sendMentorshipWaitlistNotificationEmail,
   sendGiovannaMentorshipPurchaseEmail,
   sendContactEmail,
