@@ -5,10 +5,10 @@ const { generateLicenseKey } = require("../lib/licenseKey");
 const {
   sendLicenseEmail,
   sendMentorshipConfirmationEmail,
-  sendGiovannaMentorshipPurchaseEmail,
 } = require("../lib/email");
 const { createMentorshipEvent } = require("../lib/calendar");
 const { createBooking } = require("../lib/mentorshipDb");
+const { sendGiovannaMentorshipConfirmationForSession } = require("../lib/giovannaMentorshipConfirmation");
 
 const router = express.Router();
 const SITE_URL = process.env.SITE_URL || "https://blastgroup.org";
@@ -58,18 +58,7 @@ async function handleMentorshipBooking(session) {
 }
 
 async function handleGiovannaMentorshipPurchase(session) {
-  const buyerEmail = session.customer_details?.email || session.customer_email || session.metadata?.buyer_email;
-  const buyerName = session.customer_details?.name || session.metadata?.buyer_name || "Cliente";
-
-  if (!buyerEmail) {
-    console.error("Giovanna mentorship webhook: missing buyer email", { sessionId: session.id });
-    return;
-  }
-
-  const result = await sendGiovannaMentorshipPurchaseEmail({
-    to: buyerEmail,
-    buyerName,
-  });
+  const result = await sendGiovannaMentorshipConfirmationForSession(session);
 
   if (!result.ok) {
     console.error("Giovanna mentorship confirmation email failed", {

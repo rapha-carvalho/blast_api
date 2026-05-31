@@ -13,6 +13,7 @@ const {
 const { getAvailableSlots } = require("../lib/calendar");
 const { sendMentorshipWaitlistNotificationEmail } = require("../lib/email");
 const { appendWaitlistSubmission } = require("../lib/sheets");
+const { sendGiovannaMentorshipConfirmationForSessionId } = require("../lib/giovannaMentorshipConfirmation");
 
 const router = express.Router();
 const SITE_URL = process.env.SITE_URL || "https://blastgroup.org";
@@ -335,6 +336,45 @@ router.post("/giovanna/checkout-session", async (req, res) => {
 
     console.error("Giovanna checkout session error:", error);
     return res.status(500).json({ error: "checkout_session_failed" });
+  }
+});
+
+router.post("/giovanna/checkout-confirmation", async (req, res) => {
+  const sessionId = trimField(req.body?.session_id || req.body?.sessionId, 255);
+
+  if (!sessionId || !sessionId.startsWith("cs_")) {
+    return res.status(400).json({ error: "invalid_session_id" });
+  }
+
+  try {
+    const result = await sendGiovannaMentorshipConfirmationForSessionId(sessionId);
+
+    if (!result.ok) {
+      const statusByReason = {
+        checkout_not_configured: 500,
+        invalid_session_type: 404,
+        session_not_paid: 409,
+        missing_email: 422,
+        email_failed: 503,
+        email_not_configured: 503,
+      };
+
+      return res.status(statusByReason[result.reason] || 500).json({
+        error: result.reason || "confirmation_failed",
+      });
+    }
+
+    return res.json({
+      ok: true,
+      alreadySent: Boolean(result.alreadySent),
+    });
+  } catch (error) {
+    if (error.code === "resource_missing") {
+      return res.status(404).json({ error: "session_not_found" });
+    }
+
+    console.error("Giovanna checkout confirmation error:", error);
+    return res.status(500).json({ error: "confirmation_failed" });
   }
 });
 
