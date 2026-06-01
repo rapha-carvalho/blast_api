@@ -4,6 +4,7 @@ const checkContentLength = require("../middleware/checkContentLength");
 const createRateLimiter = require("../middleware/rateLimit");
 const { getClientIp } = require("../lib/ip");
 const { appendSqlCheatsheetAccess } = require("../lib/sheets");
+const { CONSENT_VERSION, subscribeToSqlNewsletter } = require("../lib/newsletterService");
 
 const router = express.Router();
 const rateLimiter = createRateLimiter({
@@ -65,8 +66,9 @@ function validateAccess(access) {
   if (access.source === "landing") {
     if (access.name.length < 2) errors.push("name");
     if (access.level.length < 2) errors.push("level");
-    if (access.role.length < 2) errors.push("role");
     if (!access.consent) errors.push("consent");
+  } else if (access.source === "direct" && !access.consent) {
+    errors.push("consent");
   }
 
   return errors;
@@ -94,6 +96,38 @@ router.post(
       if (!sheetResult.ok) {
         console.warn("SQL cheatsheet sheet append failed", { reason: sheetResult.reason });
         return res.status(503).json({ error: "sheet_append_failed" });
+      }
+
+      if (access.consent) {
+        const newsletterResult = await subscribeToSqlNewsletter({
+          name: access.name,
+          email: access.email,
+          level: access.level,
+          consent: access.consent,
+          consentVersion: cleanString(body.consent_version || body.consentVersion || CONSENT_VERSION, 120),
+          source: `cheatsheet_${access.source}`,
+          sourceDetail: "sql_cheatsheet",
+          website: access.website,
+          pageUrl: access.pageUrl,
+          utmSource: access.utmSource,
+          utmMedium: access.utmMedium,
+          utmCampaign: access.utmCampaign,
+          utmContent: access.utmContent,
+          utmTerm: access.utmTerm,
+          gclid: access.gclid,
+          gbraid: access.gbraid,
+          wbraid: access.wbraid,
+          fbclid: access.fbclid,
+          subscribedAt: access.accessedAt,
+          updatedAt: access.accessedAt,
+          userAgent: access.userAgent,
+          ip: access.ip,
+        });
+
+        if (!newsletterResult.ok) {
+          console.warn("SQL cheatsheet newsletter subscribe failed", { reason: newsletterResult.reason });
+          return res.status(503).json({ error: "newsletter_subscribe_failed" });
+        }
       }
 
       console.log(

@@ -231,6 +231,9 @@ async function appendSqlCheatsheetAccess(access) {
 }
 
 module.exports = {
+  ensureSheetWithHeaders,
+  getSheetsAuth,
+  quoteSheetName,
   appendWaitlistSubmission,
   appendSqlCheatsheetAccess,
   WAITLIST_SHEET_NAME,

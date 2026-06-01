@@ -8,6 +8,7 @@ const trackingRouter = require("./routes/tracking");
 const mentorshipRouter = require("./routes/mentorship");
 const mentorshipCheckoutRouter = require("./routes/mentorshipCheckout");
 const sqlCheatsheetRouter = require("./routes/sqlCheatsheet");
+const newsletterRouter = require("./routes/newsletter");
 const stripeRouter = require("./routes/stripe");
 const licenseRouter = require("./routes/license");
 const adminRouter = require("./routes/admin");
@@ -69,6 +70,8 @@ app.use(cors(corsOptions));
 
 // Raw body for Stripe webhook — must come before express.json()
 app.use("/api/stripe/webhook", express.raw({ type: "application/json", limit: "64kb" }));
+// Raw body for Resend webhook verification must also come before express.json().
+app.use("/api/newsletter/resend-webhook", express.raw({ type: "application/json", limit: "512kb" }));
 
 app.use(express.json({ limit: `${config.maxBodyMb}mb` }));
 
@@ -98,6 +101,7 @@ app.use("/api/v1/tracking/events", trackingRouter);
 app.use("/api/v1/mentorship/bookings", mentorshipRouter);
 app.use("/api/mentorship", mentorshipCheckoutRouter);
 app.use("/api/sql-cheatsheet", sqlCheatsheetRouter);
+app.use("/api/newsletter", newsletterRouter);
 app.use("/api/stripe", stripeRouter);
 app.use("/api/license", licenseRouter);
 app.use("/api/admin", adminRouter);

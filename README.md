@@ -61,6 +61,10 @@ Copy `.env.example` and adjust:
 - `ALLOWED_EXTENSION_IDS` default empty
 - `LOGO_PATH` default `/app/blast-logo.png`
 - `CLOUDFLARE_TUNNEL_TOKEN` required for `cloudflared`
+- `RESEND_API_KEY` required to create/update newsletter contacts and start automations
+- `RESEND_WEBHOOK_SECRET` required for `POST /api/newsletter/resend-webhook`
+- `NEWSLETTER_SPREADSHEET_ID` default `1pYUecE7dinPywyabPNhqamya2nhx2zl-HioJFRAms4c`
+- `RESEND_SQL_SEGMENT_ID` and `RESEND_SQL_TOPIC_ID` are optional IDs used to segment SQL Pratico leads in Resend
 
 ## References
 

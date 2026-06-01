@@ -58,6 +58,18 @@ module.exports = {
   stripePriceIdYearly: process.env.STRIPE_PRICE_ID_YEARLY || "",
   stripePriceIdOnetime: process.env.STRIPE_PRICE_ID_ONETIME || "",
   resendApiKey: process.env.RESEND_API_KEY || "",
+  resendWebhookSecret: process.env.RESEND_WEBHOOK_SECRET || "",
+  newsletterFrom: process.env.NEWSLETTER_FROM || process.env.EMAIL_FROM || "noreply@blastgroup.org",
+  newsletterSpreadsheetId:
+    process.env.NEWSLETTER_SPREADSHEET_ID || "1pYUecE7dinPywyabPNhqamya2nhx2zl-HioJFRAms4c",
+  newsletterSubscribersSheetName: process.env.NEWSLETTER_SUBSCRIBERS_SHEET_NAME || "Inscritos",
+  newsletterEventsSheetName: process.env.NEWSLETTER_EVENTS_SHEET_NAME || "Eventos",
+  newsletterEmailEventsSheetName: process.env.NEWSLETTER_EMAIL_EVENTS_SHEET_NAME || "Email Eventos",
+  newsletterEmailSummarySheetName: process.env.NEWSLETTER_EMAIL_SUMMARY_SHEET_NAME || "Resumo por Email",
+  newsletterCampaignSummarySheetName:
+    process.env.NEWSLETTER_CAMPAIGN_SUMMARY_SHEET_NAME || "Resumo por Campanha",
+  resendSqlSegmentId: process.env.RESEND_SQL_SEGMENT_ID || "",
+  resendSqlTopicId: process.env.RESEND_SQL_TOPIC_ID || "",
   emailFrom: process.env.EMAIL_FROM || "noreply@blastgroup.org",
   contactInbox: process.env.CONTACT_INBOX || "contato@blastgroup.org",
   siteUrl: process.env.SITE_URL || "https://blastgroup.org",
