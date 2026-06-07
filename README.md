@@ -56,7 +56,7 @@ Copy `.env.example` and adjust:
 - `RATE_LIMIT_WINDOW_MS` default `60000`
 - `ENABLE_DB` default `false`
 - `DB_PATH` default `/app/data/ga4-inspector.db`
-- `ALLOWED_ORIGINS` default `https://blastgroup.org`
+- `ALLOWED_ORIGINS` default `https://blastgroup.org,https://www.blastgroup.org,https://education.blastgroup.org`
 - `ALLOW_CHROME_EXTENSION_ORIGINS` default `true`
 - `ALLOWED_EXTENSION_IDS` default empty
 - `LOGO_PATH` default `/app/blast-logo.png`
@@ -65,6 +65,12 @@ Copy `.env.example` and adjust:
 - `RESEND_WEBHOOK_SECRET` required for `POST /api/newsletter/resend-webhook`
 - `NEWSLETTER_SPREADSHEET_ID` default `1pYUecE7dinPywyabPNhqamya2nhx2zl-HioJFRAms4c`
 - `RESEND_SQL_SEGMENT_ID` and `RESEND_SQL_TOPIC_ID` are optional IDs used to segment SQL Pratico leads in Resend
+- `TRACKING_ALLOWED_HOSTNAMES` default `blastgroup.org,www.blastgroup.org,education.blastgroup.org`
+- `TRACKING_GA4_VALIDATE_EVENTS` default `false`; set `true` in dev/staging to use GA4 `/debug/mp/collect`
+- `GA4_MEASUREMENT_ID` and `GA4_API_SECRET` required for GA4 Measurement Protocol dispatch
+- For `blastgroup-site`, browser `page_view`/`session_start` should be owned by `gtag.js`; when the site sends `ga4_browser_page_view=true`, the API skips only the GA4 `page_view` dispatch to avoid duplicates and still keeps Meta CAPI dispatch.
+- `GET /api/v1/tracking/site-events/config` exposes only public browser tracking config, currently the GA4 measurement ID. It never returns `GA4_API_SECRET`.
+- `META_PIXEL_ID` and `META_ACCESS_TOKEN` required for Meta Conversions API dispatch
 
 ## References
 

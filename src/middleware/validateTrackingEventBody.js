@@ -103,11 +103,15 @@ function validateTrackingEventBody(req, res, next) {
     referrer: 2000,
     ga_client_id: 255,
     ga_session_id: 255,
+    session_started_at: "number",
+    landing_page_location: 2000,
+    landing_referrer: 2000,
     fbp: 255,
     fbc: 255,
   });
 
   const attribution = sanitizeObject(body.attribution, {
+    utm_id: 200,
     utm_source: 200,
     utm_medium: 200,
     utm_campaign: 200,

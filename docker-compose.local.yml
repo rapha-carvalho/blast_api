@@ -14,7 +14,7 @@ services:
       RATE_LIMIT_WINDOW_MS: 60000
       ENABLE_DB: "false"
       DB_PATH: /app/data/ga4-inspector.db
-      ALLOWED_ORIGINS: https://blastgroup.org
+      ALLOWED_ORIGINS: https://blastgroup.org,https://www.blastgroup.org,https://education.blastgroup.org
       ALLOW_CHROME_EXTENSION_ORIGINS: "true"
       LOGO_PATH: /app/blast-logo.png
       RESEND_API_KEY: ${RESEND_API_KEY:-}
@@ -25,6 +25,8 @@ services:
       NEWSLETTER_EMAIL_EVENTS_SHEET_NAME: ${NEWSLETTER_EMAIL_EVENTS_SHEET_NAME:-Email Eventos}
       NEWSLETTER_EMAIL_SUMMARY_SHEET_NAME: ${NEWSLETTER_EMAIL_SUMMARY_SHEET_NAME:-Resumo por Email}
       NEWSLETTER_CAMPAIGN_SUMMARY_SHEET_NAME: ${NEWSLETTER_CAMPAIGN_SUMMARY_SHEET_NAME:-Resumo por Campanha}
+      TRACKING_ALLOWED_HOSTNAMES: blastgroup.org,www.blastgroup.org,education.blastgroup.org
+      TRACKING_GA4_VALIDATE_EVENTS: "false"
     volumes:
       - ./data:/app/data
     restart: unless-stopped

@@ -178,12 +178,64 @@ function buildMetaPayload(trackingEvent) {
   };
 }
 
+function cleanString(value) {
+  const text = String(value || "").trim();
+  return text || undefined;
+}
+
+function toPositiveNumber(value) {
+  if (value === null || value === undefined || value === "") return undefined;
+  const text = String(value).trim();
+  if (!/^\d+$/.test(text)) return undefined;
+  const parsed = Number(text);
+  if (!Number.isSafeInteger(parsed) || parsed <= 0) return undefined;
+  return parsed;
+}
+
+function getGa4Identity(trackingEvent) {
+  const clientId = cleanString(trackingEvent.client && trackingEvent.client.ga_client_id);
+  const sessionId = toPositiveNumber(trackingEvent.client && trackingEvent.client.ga_session_id);
+  return { clientId, sessionId };
+}
+
+function getGa4EventName(trackingEvent) {
+  if (trackingEvent.event_name === "view_content" && trackingEvent.source_app === "blastgroup_site") {
+    return "view_item";
+  }
+  return trackingEvent.event_name;
+}
+
+function buildCampaignDetailsParams(trackingEvent) {
+  const attribution = trackingEvent.attribution || {};
+  const params = {
+    campaign_id: attribution.utm_id,
+    campaign: attribution.utm_campaign,
+    source: attribution.utm_source,
+    medium: attribution.utm_medium,
+    term: attribution.utm_term,
+    content: attribution.utm_content,
+  };
+
+  const cleaned = Object.fromEntries(
+    Object.entries(params).filter(([, value]) => value !== undefined && value !== null && value !== "")
+  );
+
+  if (!cleaned.campaign_id && !cleaned.campaign && !cleaned.source && !cleaned.medium) {
+    return undefined;
+  }
+
+  return cleaned;
+}
+
 function buildGa4EventParams(trackingEvent) {
   const commerce = trackingEvent.commerce || {};
   const attribution = trackingEvent.attribution || {};
   const metadata = trackingEvent.metadata || {};
+  const identity = getGa4Identity(trackingEvent);
+  const client = trackingEvent.client || {};
   const params = {
-    session_id: trackingEvent.client && trackingEvent.client.ga_session_id,
+    session_id: identity.sessionId,
+    session_started_at: client.session_started_at,
     engagement_time_msec: 1,
     currency: commerce.currency,
     value: commerce.value,
@@ -201,10 +253,13 @@ function buildGa4EventParams(trackingEvent) {
           quantity: item.quantity,
         }))
       : undefined,
-    page_location: trackingEvent.client && trackingEvent.client.page_location,
-    page_referrer: trackingEvent.client && trackingEvent.client.referrer,
-    page_title: metadata.page_title || (trackingEvent.client && trackingEvent.client.page_title),
+    page_location: client.page_location,
+    page_referrer: client.referrer || client.landing_referrer,
+    page_title: metadata.page_title || client.page_title,
     page_path: metadata.page_path,
+    landing_page_location: client.landing_page_location,
+    landing_page_path: metadata.landing_page_path,
+    landing_referrer: client.landing_referrer,
     page_type: metadata.page_type,
     content_name: metadata.content_name,
     content_category: metadata.content_category,
@@ -215,6 +270,7 @@ function buildGa4EventParams(trackingEvent) {
     section_name: metadata.section_name,
     trigger: metadata.trigger,
     reason: metadata.reason,
+    utm_id: attribution.utm_id,
     source: attribution.utm_source,
     medium: attribution.utm_medium,
     campaign: attribution.utm_campaign,
@@ -236,24 +292,54 @@ function buildGa4EventParams(trackingEvent) {
 }
 
 function buildGa4Payload(trackingEvent) {
-  const clientId =
-    (trackingEvent.client && trackingEvent.client.ga_client_id) ||
-    `${Math.round(Number(trackingEvent.event_time))}.1`;
-  const eventName =
-    trackingEvent.event_name === "view_content" && trackingEvent.source_app === "blastgroup_site"
-      ? "view_item"
-      : trackingEvent.event_name;
+  const identity = getGa4Identity(trackingEvent);
+  if (!identity.clientId || !identity.sessionId) {
+    return undefined;
+  }
+
+  const eventName = getGa4EventName(trackingEvent);
+  const events = [];
+  const campaignDetailsParams = buildCampaignDetailsParams(trackingEvent);
+  if (campaignDetailsParams) {
+    events.push({
+      name: "campaign_details",
+      params: {
+        session_id: identity.sessionId,
+        engagement_time_msec: 1,
+        ...campaignDetailsParams,
+      },
+    });
+  }
+
+  events.push({
+    name: eventName,
+    params: buildGa4EventParams(trackingEvent),
+  });
 
   return {
-    client_id: clientId,
+    client_id: identity.clientId,
     timestamp_micros: Math.round(Number(trackingEvent.event_time) * 1000 * 1000),
-    events: [
-      {
-        name: eventName,
-        params: buildGa4EventParams(trackingEvent),
-      },
-    ],
+    events,
+    ...(config.trackingGa4ValidateEvents
+      ? { validation_behavior: "ENFORCE_RECOMMENDATIONS" }
+      : {}),
   };
+}
+
+function getGa4SkipReason(trackingEvent) {
+  if (trackingEvent.event_name !== "page_view") {
+    return undefined;
+  }
+
+  if (trackingEvent.source_app === "blast_sql_vertical") {
+    return "ga4_browser_owned_event";
+  }
+
+  if (trackingEvent.source_app === "blastgroup_site" && trackingEvent.ga4_browser_page_view) {
+    return "ga4_browser_owned_event";
+  }
+
+  return undefined;
 }
 
 function postJson(urlString, body, headers = {}, timeoutMs = 5000) {
@@ -337,16 +423,23 @@ async function sendGa4Event(trackingEvent) {
     return { status: "skipped", reason: "ga4_not_configured" };
   }
 
-  if (trackingEvent.event_name === "page_view" && trackingEvent.source_app === "blast_sql_vertical") {
-    return { status: "skipped", reason: "ga4_browser_owned_event" };
+  const skipReason = getGa4SkipReason(trackingEvent);
+  if (skipReason) {
+    return { status: "skipped", reason: skipReason };
   }
 
   const payload = buildGa4Payload(trackingEvent);
-  const url = `https://www.google-analytics.com/mp/collect?measurement_id=${encodeURIComponent(config.ga4MeasurementId)}&api_secret=${encodeURIComponent(config.ga4ApiSecret)}`;
+  if (!payload) {
+    return { status: "skipped", reason: "missing_ga4_client_or_session_id" };
+  }
+
+  const collectPath = config.trackingGa4ValidateEvents ? "/debug/mp/collect" : "/mp/collect";
+  const url = `https://www.google-analytics.com${collectPath}?measurement_id=${encodeURIComponent(config.ga4MeasurementId)}&api_secret=${encodeURIComponent(config.ga4ApiSecret)}`;
   const response = await postJson(url, payload, {}, config.trackingDispatchTimeoutMs);
   return {
     status: "sent",
     http_status: response.statusCode,
+    response: response.body || undefined,
   };
 }
 
@@ -369,4 +462,11 @@ async function dispatchTrackingEvent(trackingEvent) {
 
 module.exports = {
   dispatchTrackingEvent,
+  _test: {
+    buildCampaignDetailsParams,
+    buildGa4EventParams,
+    buildGa4Payload,
+    getGa4SkipReason,
+    getGa4Identity,
+  },
 };

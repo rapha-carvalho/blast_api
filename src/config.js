@@ -22,6 +22,14 @@ function parseBoolean(value, fallback) {
   return fallback;
 }
 
+function parseList(value, fallback = []) {
+  const source = value === undefined || value === null || value === "" ? fallback.join(",") : value;
+  return String(source)
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
 const maxBodyMb = parsePositiveInt(process.env.MAX_BODY_MB, 5);
 
 module.exports = {
@@ -33,7 +41,9 @@ module.exports = {
   rateLimitWindowMs: parsePositiveInt(process.env.RATE_LIMIT_WINDOW_MS, 60_000),
   enableDb: parseBoolean(process.env.ENABLE_DB, false),
   dbPath: process.env.DB_PATH || path.resolve(process.cwd(), "data", "ga4-inspector.db"),
-  allowedOrigins: (process.env.ALLOWED_ORIGINS || "https://blastgroup.org")
+  allowedOrigins: (
+    process.env.ALLOWED_ORIGINS || "https://blastgroup.org,https://www.blastgroup.org,https://education.blastgroup.org"
+  )
     .split(",")
     .map((origin) => origin.trim())
     .filter(Boolean),
@@ -84,6 +94,12 @@ module.exports = {
   trackingIdempotencyTtlMs: parsePositiveInt(process.env.TRACKING_IDEMPOTENCY_TTL_MS, 7 * 24 * 60 * 60 * 1000),
   trackingDispatchTimeoutMs: parsePositiveInt(process.env.TRACKING_DISPATCH_TIMEOUT_MS, 5000),
   trackingDebugEnabled: parseBoolean(process.env.TRACKING_DEBUG_ENABLED, false),
+  trackingAllowedHostnames: parseList(process.env.TRACKING_ALLOWED_HOSTNAMES, [
+    "blastgroup.org",
+    "www.blastgroup.org",
+    "education.blastgroup.org",
+  ]).map((hostname) => hostname.toLowerCase()),
+  trackingGa4ValidateEvents: parseBoolean(process.env.TRACKING_GA4_VALIDATE_EVENTS, false),
   metaPixelId: process.env.META_PIXEL_ID || "",
   metaAccessToken: process.env.META_ACCESS_TOKEN || "",
   metaTestEventCode: process.env.META_TEST_EVENT_CODE || "",

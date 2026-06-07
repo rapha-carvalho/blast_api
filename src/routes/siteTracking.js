@@ -40,7 +40,7 @@ const ALLOWED_EVENT_NAMES = new Set([
   "exit_intent_cta_click",
 ]);
 
-const ALLOWED_HOSTNAMES = new Set(["blastgroup.org", "www.blastgroup.org"]);
+const ALLOWED_HOSTNAMES = new Set(config.trackingAllowedHostnames);
 const COURSE_CHECKOUT_CTA_EVENT_NAMES = new Set([
   "cta_click",
   "sticky_cta_click",
@@ -60,6 +60,15 @@ function toOptionalNumber(value) {
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return undefined;
   return parsed;
+}
+
+function toOptionalBoolean(value) {
+  if (value === null || value === undefined || value === "") return undefined;
+  if (typeof value === "boolean") return value;
+  const normalized = String(value).trim().toLowerCase();
+  if (["true", "1", "yes"].includes(normalized)) return true;
+  if (["false", "0", "no"].includes(normalized)) return false;
+  return undefined;
 }
 
 function parseUrl(value) {
@@ -103,6 +112,7 @@ function sanitizeMetadata(body) {
     trigger: cleanString(body.trigger, 120),
     reason: cleanString(body.reason, 120),
     coupon: cleanString(body.coupon, 120),
+    landing_page_path: cleanString(body.landing_page_path, 1000),
   };
 
   return Object.fromEntries(Object.entries(metadata).filter(([, value]) => value !== undefined));
@@ -182,6 +192,7 @@ function validateAndBuildTrackingEvent(req) {
   const idempotencyKey = cleanString(body.idempotency_key, 255);
   const eventTime = toOptionalNumber(body.event_time);
   const pageLocation = cleanString(body.page_location, 2000);
+  const landingPageLocation = cleanString(body.landing_page_location, 2000);
 
   if (!eventName || !ALLOWED_EVENT_NAMES.has(eventName)) {
     errors.push("event_name is required and must be an allowed site event.");
@@ -201,7 +212,12 @@ function validateAndBuildTrackingEvent(req) {
 
   const pageUrl = pageLocation ? parseUrl(pageLocation) : null;
   if (!pageUrl || !isAllowedHostname(pageUrl.hostname)) {
-    errors.push("page_location must belong to blastgroup.org.");
+    errors.push("page_location must belong to an allowed tracking hostname.");
+  }
+
+  const landingPageUrl = landingPageLocation ? parseUrl(landingPageLocation) : null;
+  if (landingPageLocation && (!landingPageUrl || !isAllowedHostname(landingPageUrl.hostname))) {
+    errors.push("landing_page_location must belong to an allowed tracking hostname.");
   }
 
   const origin = cleanString(req.headers.origin, 2000);
@@ -223,6 +239,7 @@ function validateAndBuildTrackingEvent(req) {
     event_id: eventId,
     event_time: Number(eventTime),
     idempotency_key: idempotencyKey,
+    ga4_browser_page_view: toOptionalBoolean(body.ga4_browser_page_view) === true,
     client: {
       ip_address: getClientIp(req),
       user_agent: cleanString(req.headers["user-agent"], 1000),
@@ -230,10 +247,14 @@ function validateAndBuildTrackingEvent(req) {
       referrer: cleanString(body.referrer, 2000),
       ga_client_id: cleanString(body.ga_client_id, 255),
       ga_session_id: cleanString(body.ga_session_id, 255),
+      session_started_at: toOptionalNumber(body.session_started_at),
+      landing_page_location: landingPageLocation,
+      landing_referrer: cleanString(body.landing_referrer, 2000),
       fbp: cleanString(body.fbp, 255),
       fbc: cleanString(body.fbc, 255),
     },
     attribution: {
+      utm_id: cleanString(body.utm_id, 200),
       utm_source: cleanString(body.utm_source, 200),
       utm_medium: cleanString(body.utm_medium, 200),
       utm_campaign: cleanString(body.utm_campaign, 200),
@@ -250,6 +271,16 @@ function validateAndBuildTrackingEvent(req) {
 
   return { trackingEvent };
 }
+
+function buildPublicTrackingConfig() {
+  return {
+    ga4_measurement_id: cleanString(config.ga4MeasurementId, 80) || "",
+  };
+}
+
+router.get("/config", (req, res) => {
+  res.status(200).json(buildPublicTrackingConfig());
+});
 
 router.post(
   "/",
@@ -325,3 +356,8 @@ router.use((err, req, res, next) => {
 });
 
 module.exports = router;
+module.exports._test = {
+  buildPublicTrackingConfig,
+  isAllowedHostname,
+  validateAndBuildTrackingEvent,
+};
